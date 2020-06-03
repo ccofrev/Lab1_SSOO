@@ -127,100 +127,8 @@ bool write_jpeg(const JpegData *jpegData,
     cinfo.image_width      = jpegData->width;
     cinfo.image_height     = jpegData->height;
     cinfo.input_components = jpegData->ch;
-    //cinfo.in_color_space   = JCS_RGBJCS_RGB;
+    //cinfo.in_color_space   = JCS_RGB;
     cinfo.in_color_space   = jcs;
-    jpeg_set_defaults(&cinfo);
-
-    // 4.
-    jpeg_start_compress(&cinfo, TRUE);
-
-    // 5.
-    uint8_t *row = jpegData->data;
-    const uint32_t stride = jpegData->width * jpegData->ch;
-    for (int y = 0; y < jpegData->height; y++) {
-        jpeg_write_scanlines(&cinfo, &row, 1);
-        row += stride;
-    }
-
-    // 6.
-    jpeg_finish_compress(&cinfo);
-    jpeg_destroy_compress(&cinfo);
-    fclose(fp);
-
-    return true;
-}
-
-
-
-bool read_jpeg_bn(JpegData *jpegData,
-              const char *srcfile,
-              struct jpeg_error_mgr *jerr)
-{
-    // 1.
-    struct jpeg_decompress_struct cinfo;
-    jpeg_create_decompress(&cinfo);
-    cinfo.err = jpeg_std_error(jerr);
-
-    FILE *fp = fopen(srcfile, "rb");
-    if (fp == NULL) {
-        printf("Error: failed to open %s\n", srcfile);
-        return false;
-    }
-    // 2.
-    jpeg_stdio_src(&cinfo, fp);
-
-    // 3.
-    jpeg_read_header(&cinfo, TRUE);
-
-    // 4. omitted
-    // 5.
-    jpeg_start_decompress(&cinfo);
-
-    jpegData->width  = cinfo.image_width;
-    jpegData->height = cinfo.image_height;
-    jpegData->ch     = cinfo.num_components;
-
-    alloc_jpeg(jpegData);
-
-    // 6. read line by line
-    uint8_t *row = jpegData->data;
-    const uint32_t stride = jpegData->width * jpegData->ch;
-    for (int y = 0; y < jpegData->height; y++) {
-        jpeg_read_scanlines(&cinfo, &row, 1);
-        row += stride;
-    }
-
-    // 7.
-    jpeg_finish_decompress(&cinfo);
-    jpeg_destroy_decompress(&cinfo);
-    fclose(fp);
-
-    return true;
-}
-
-bool write_jpeg_bn(const JpegData *jpegData,
-                const char *dstfile,
-                struct jpeg_error_mgr *jerr)
-{
-    // 1.
-    struct jpeg_compress_struct cinfo;
-    jpeg_create_compress(&cinfo);
-    cinfo.err = jpeg_std_error(jerr);
-
-    FILE *fp = fopen(dstfile, "wb");
-    if (fp == NULL) {
-        printf("Error: failed to open %s\n", dstfile);
-        return false;
-    }
-    // 2.
-    jpeg_stdio_dest(&cinfo, fp);
-
-    // 3.
-    cinfo.image_width      = jpegData->width;
-    cinfo.image_height     = jpegData->height;
-    //cinfo.input_components = jpegData->ch;
-    cinfo.input_components = 1;
-    cinfo.in_color_space   = JCS_GRAYSCALE;
     jpeg_set_defaults(&cinfo);
 
     // 4.
@@ -252,10 +160,10 @@ int main(void){
     // 
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
-    int UMBRAL = 50;
+    int UMBRAL = 30;
 
     // src/dst file
-    char *src = "./img_test/lena_.jpg";
+    char *src = "./img_test/ering.jpg";
     char *dst = "./img_test/out.jpg";
     char *dstBn = "./img_test/outBn.jpg";
     char *dstBnLap = "./img_test/outBnLap.jpg";
@@ -267,6 +175,7 @@ int main(void){
     }
 
     printf("Read:  %s\n", src);
+
 
     if (!read_jpeg(&jpegDataDst, src, &jerr)){
         free_jpeg(&jpegDataDst);
@@ -305,10 +214,11 @@ int main(void){
     
     // reverse all bits
     int sizeOri = jpegDataOri.width * jpegDataOri.height * jpegDataOri.ch;
-    float arr[]={.3,.59,.11};   // factores para conversion a BN
-    int lapMasc[3][3] = {   {1, 0, 1},
-                            {0,-4, 0},
-                            {1, 0, 1} };
+    float factoresBN[]={.3,.59,.11};   // factores para conversion a BN
+    int lapMasc[3][3] = {   {0, 1, 0},
+                            {1,-4, 1},
+                            {0, 1, 0} };
+    float factor = 1.0/9.0;
 
 
     //float val = 0.0;
@@ -318,49 +228,35 @@ int main(void){
     int alto=0, ancho=0;
     int pixelXY = 0, pixelXYLap = 0;
 
+    // Blanco y negro
     for (i=0; i<sizeOri; i+=jpegDataOri.ch) {
 
         jpegDataDst.data[i]= jpegDataOri.data[i] ;
 
         if( i%jpegDataOri.ch==0 ){
-            jpegDataDstBn.data[cont]= arr[0]*(float)jpegDataOri.data[i] + arr[1]*(float)jpegDataOri.data[i] + arr[2]*(float)jpegDataOri.data[i] ;
+            jpegDataDstBn.data[cont]= factoresBN[0]*(float)jpegDataOri.data[i] + factoresBN[1]*(float)jpegDataOri.data[i] + factoresBN[2]*(float)jpegDataOri.data[i] ;
             cont++;
         }
     }
 
-    
-    // Escritura
-    /*
-    if (!write_jpeg(&jpegDataDst, dst, &jerr, JCS_RGB)){
-        free_jpeg(&jpegDataDst);
-        return -1;
-    }
+       
 
-    printf("Write: %s\n", dst);
-    free_jpeg(&jpegDataDst);
-    */
-
-    // Escritura bn
-    if (!write_jpeg(&jpegDataDstBn, dstBn, &jerr, JCS_GRAYSCALE)){
-        free_jpeg(&jpegDataDstBn);
-        return -1;
-    }
-    //printf("Write: %s\n", dstBn);
-    //free_jpeg(&jpegDataDstBn);
 
     // recorrido imagen para laplaciano
     alto = jpegDataDstBn.height;
     ancho = jpegDataDstBn.width;
 
-
-    for (j=1; j<alto-1; j++){     // filas desde la segunda (indice 1) hasta la penultima (indice n-1)
-        for(i=1; i<ancho-1; i++){ // columnas desde la segunda (indice 1) hasta la penultima (indice m-1)
-            
+    // se limpia para test          // umbral
+    for (j=1; j<alto-1; j++){       // filas desde la segunda (indice 1) hasta la penultima (indice n-1)
+        for(i=1; i<ancho-1; i++){   // columnas desde la segunda (indice 1) hasta la penultima (indice m-1)
             for(jj=-1; jj<=1;jj++){
                 for(ii=-1; ii<=1; ii++){
                     pixelXY += lapMasc[jj+1][ii+1] * jpegDataDstBn.data[(i+ii)+ancho*(j+jj)];
                 }
             }
+            //pixelXY = (int) ((float)pixelXY*factor);
+            pixelXY = pixelXY<0?0 : pixelXY>255?255 : pixelXY;
+
             jpegDataDstBnLap.data[i+ancho*j] = pixelXY;
             pixelXY = 0;
         }
