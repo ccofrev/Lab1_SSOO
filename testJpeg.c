@@ -252,7 +252,7 @@ int main(void){
     // 
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
-    int UMBRAL = 100;
+    int UMBRAL = 50;
 
     // src/dst file
     char *src = "./img_test/lena_.jpg";
