@@ -1,12 +1,12 @@
 /*******************************************************************************
- jpegtest.c
- $ gcc jpegtest.c -std=c11 -ljpeg
-
- Basado en desarrollo de Kenta Kuramochi publicado en
- https://gist.github.com/kentakuramochi/f64e7646f1db8335c80f131be8359044
-
- se compila con
- gcc testJpeg.c -o testJpeg -std=c11 -ljpeg
+ * 
+ * jpegtest.c
+ * 
+ * Basado en desarrollo de Kenta Kuramochi publicado en
+ * https://gist.github.com/kentakuramochi/f64e7646f1db8335c80f131be8359044
+ * se compila con
+ * gcc testJpeg.c -o testJpeg -std=c11 -ljpeg
+ * 
  ******************************************************************************/
 
 #include <stdio.h>
@@ -22,6 +22,7 @@ typedef struct {
     uint32_t height;
     uint32_t ch;     // color channels
 } JpegData;
+
 
 // Para reservar memoria para datos imagen
 void alloc_jpeg(JpegData *jpegData)
@@ -106,7 +107,8 @@ bool read_jpeg(JpegData *jpegData,
 // 6. finish compression
 bool write_jpeg(const JpegData *jpegData,
                 const char *dstfile,
-                struct jpeg_error_mgr *jerr)
+                struct jpeg_error_mgr *jerr,
+                J_COLOR_SPACE jcs)
 {
     // 1.
     struct jpeg_compress_struct cinfo;
@@ -125,7 +127,8 @@ bool write_jpeg(const JpegData *jpegData,
     cinfo.image_width      = jpegData->width;
     cinfo.image_height     = jpegData->height;
     cinfo.input_components = jpegData->ch;
-    cinfo.in_color_space   = JCS_RGB;
+    //cinfo.in_color_space   = JCS_RGBJCS_RGB;
+    cinfo.in_color_space   = jcs;
     jpeg_set_defaults(&cinfo);
 
     // 4.
@@ -149,11 +152,53 @@ bool write_jpeg(const JpegData *jpegData,
 
 
 
+bool read_jpeg_bn(JpegData *jpegData,
+              const char *srcfile,
+              struct jpeg_error_mgr *jerr)
+{
+    // 1.
+    struct jpeg_decompress_struct cinfo;
+    jpeg_create_decompress(&cinfo);
+    cinfo.err = jpeg_std_error(jerr);
 
+    FILE *fp = fopen(srcfile, "rb");
+    if (fp == NULL) {
+        printf("Error: failed to open %s\n", srcfile);
+        return false;
+    }
+    // 2.
+    jpeg_stdio_src(&cinfo, fp);
 
+    // 3.
+    jpeg_read_header(&cinfo, TRUE);
 
+    // 4. omitted
+    // 5.
+    jpeg_start_decompress(&cinfo);
 
-bool write_jpegBN(const JpegData *jpegData,
+    jpegData->width  = cinfo.image_width;
+    jpegData->height = cinfo.image_height;
+    jpegData->ch     = cinfo.num_components;
+
+    alloc_jpeg(jpegData);
+
+    // 6. read line by line
+    uint8_t *row = jpegData->data;
+    const uint32_t stride = jpegData->width * jpegData->ch;
+    for (int y = 0; y < jpegData->height; y++) {
+        jpeg_read_scanlines(&cinfo, &row, 1);
+        row += stride;
+    }
+
+    // 7.
+    jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+    fclose(fp);
+
+    return true;
+}
+
+bool write_jpeg_bn(const JpegData *jpegData,
                 const char *dstfile,
                 struct jpeg_error_mgr *jerr)
 {
@@ -173,7 +218,8 @@ bool write_jpegBN(const JpegData *jpegData,
     // 3.
     cinfo.image_width      = jpegData->width;
     cinfo.image_height     = jpegData->height;
-    cinfo.input_components = jpegData->ch;
+    //cinfo.input_components = jpegData->ch;
+    cinfo.input_components = 1;
     cinfo.in_color_space   = JCS_GRAYSCALE;
     jpeg_set_defaults(&cinfo);
 
@@ -198,68 +244,84 @@ bool write_jpegBN(const JpegData *jpegData,
 
 
 
-int main(void)
-{
-    JpegData jpegData, jpegDataDst;
+int main(void){
+
+
+    JpegData jpegDataOri, jpegDataDst, jpegDataDstBn;
+    
 
     // 
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
 
     // src/dst file
-    char *src = "./img_test/lena.jpg";
+    char *src = "./img_test/lena_.jpg";
     char *dst = "./img_test/out.jpg";
+    char *dstBn = "./img_test/outBn.jpg";
 
-    if (!read_jpeg(&jpegData, src, &jerr)){
-        free_jpeg(&jpegData);
+    if (!read_jpeg(&jpegDataOri, src, &jerr)){
+        free_jpeg(&jpegDataOri);
         return -1;
     }
+
     printf("Read:  %s\n", src);
 
-    
     if (!read_jpeg(&jpegDataDst, src, &jerr)){
         free_jpeg(&jpegDataDst);
         return -1;
     }
-    printf("ReadDst:  %s\n", src);
-    
-   
-    // reverse all bits
-    int size = jpegData.width * jpegData.height * jpegData.ch;
-    
-    for (int i = 0; i < size; i++) {
-        jpegData.data[i] = ~jpegData.data[i];
 
+    //printf("Read:  %s\n", src);
+
+    if (!read_jpeg(&jpegDataDstBn, src, &jerr)){
+        free_jpeg(&jpegDataDstBn);
+        return -1;
     }
+    jpegDataDstBn.ch = 1; // se fuerza 1 canal en el destino BN
 
-    /*
+    //printf("Read:  %s\n", src);
+
+
+    // reverse all bits
+    int sizeOri = jpegDataOri.width * jpegDataOri.height * jpegDataOri.ch;
     float arr[]={.3,.59,.11};
+
     //float val = 0.0;
     float val;
-    int suma = 0;
-    int j;
-    for (int i=0; i<size; i+=jpegData.ch) {
+    int suma = 0, cont=0;
+    for (int i=0; i<sizeOri; i+=jpegDataOri.ch) {
 
+        jpegDataDst.data[i]= jpegDataOri.data[i] ;
 
-       for(j=0; j<jpegData.ch; j++){
-           val += (float)jpegData.data[i+j]*arr[j];
-
-           //jpegDataDst.data[i+j] = (int)(float)jpegData.data[i+j]*arr[j];
-           
-           
-           
-       }
-       jpegDataDst.data[i] = (int)val;
-       
-        //printf("%s", val<100.0?"#":" ");
-        //val = 0.0;
-        //if( ((i+jpegData.ch)%jpegData.width)==0 )
-        //printf("\n");
-       
-
+        if( i%jpegDataOri.ch==0 ){
+            jpegDataDstBn.data[cont]= arr[0]*(float)jpegDataOri.data[i] + arr[1]*(float)jpegDataOri.data[i] + arr[2]*(float)jpegDataOri.data[i] ;
+            cont++;
+        }
     }
 
+    // Escritura
+    if (!write_jpeg(&jpegDataDst, dst, &jerr, JCS_RGB)){
+        free_jpeg(&jpegDataDst);
+        return -1;
+    }
+
+    printf("Write: %s\n", dst);
+    free_jpeg(&jpegDataDst);
+
+
+    // Escritura bn
+    if (!write_jpeg(&jpegDataDstBn, dstBn, &jerr, JCS_GRAYSCALE)){
+        free_jpeg(&jpegDataDstBn);
+        return -1;
+    }
+
+    printf("Write: %s\n", dstBn);
+    free_jpeg(&jpegDataDstBn);
+       
     
+
+    
+    /*
     for(int y=0; y<jpegData.height; y++){
       for(int x=0; x<jpegData.width; x++){
         for(int ch=0; ch<jpegData.ch; ch++){
@@ -280,16 +342,6 @@ int main(void)
     }*/
 
     
-
-
-
-    if (!write_jpeg(&jpegDataDst, dst, &jerr)){
-        free_jpeg(&jpegDataDst);
-        return -1;
-    }
-    printf("Write: %s\n", dst);
-
-    free_jpeg(&jpegDataDst);
 
     return 0;
 }
