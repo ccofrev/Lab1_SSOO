@@ -16,7 +16,7 @@
 #include <stdint.h>
 #include <jpeglib.h>                                                                    
 #include "funciones.h"
-#include "herramientas.h"
+#include "jpeg.h"
 
 
 // Para reservar memoria para datos imagen

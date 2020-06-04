@@ -1,22 +1,18 @@
 salida_out = salida
-
-salida_headers = 	funciones.h herramientas.h 
-
+salida_headers = 	funciones.h jpeg.h 
 salida_source  = $(salida_headers:.h=.c) main.c
 salida_objects = $(salida_source:.c=.o)
 
 CC     = gcc
 CFLAGS = -Wall
-EXTS =  -std=c11 -ljpeg
+LIBS =  -std=c11 -ljpeg
 
 depends = .depends
-
-
 
 build : $(salida_out) 
 
 $(salida_out) : $(salida_objects)
-	$(CC) $(CFLAGS) -o $@ $^ -lm $(EXTS)
+	$(CC) $(CFLAGS) -o $@ $^ -lm $(LIBS)
 
 $(objects) :
 	$(CC) $(CFLAGS) -c -o $@ $*.c
@@ -26,5 +22,5 @@ $(depends) : $(salida_source) $(salida_headers)
 
 
 clean :
-	$(RM) $(salida_out) $(salida_objects) $(zipfile) $(depends)
+	$(RM) $(salida_out) $(salida_objects) $(depends)
 

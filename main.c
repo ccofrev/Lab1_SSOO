@@ -12,19 +12,15 @@
 #include <stdint.h>
 #include <jpeglib.h>                                                                    
 #include "funciones.h"
-#include "herramientas.h"
+#include "jpeg.h"
 
 
 int main(int argc, char *argv[]){
 
-	int n = 0, flag = 0;
-	//recibirArgumentos(argc, argv, &n, &flag);
-	if(flag==1){
-		printf("Se utilizo flag -m\n");
-		}
-	
-    printf("El argumento de flag -h es: %d\n", n);
-	
+	int nArchivos = 0, nUmbralBin = 0, nUmbralClas = 0;
+    char *mask;
+    int flag = 0;
+    recibirArgumentos(argc, argv, &nArchivos, &nUmbralBin, &nUmbralClas, mask, &flag);
 
     JpegData jpegDataOri, jpegDataDst, jpegDataDstBn, jpegDataDstBnLap, jpegDataDstBnLapUm;
 
@@ -171,7 +167,5 @@ int main(int argc, char *argv[]){
     printf("Write: %s\n", dstBnLapUm);
     free_jpeg(&jpegDataDstBnLapUm);
        
-        
-
     return 0;
 }

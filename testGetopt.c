@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 void recibirArgumentos(int argc, char *argv[], int *Archivos, int *UmbralBin, int *UmbralClas, char *Mask, int *flag){
 	int flags, opt;
 	char *aux3, *mask;
@@ -57,6 +58,7 @@ void recibirArgumentos(int argc, char *argv[], int *Archivos, int *UmbralBin, in
             case 'b':
 				flags = 1;
 				break;
+
        }
     }
 
@@ -67,7 +69,6 @@ void recibirArgumentos(int argc, char *argv[], int *Archivos, int *UmbralBin, in
     (*UmbralBin) = nUmbralBin;
 	(*UmbralClas) = nUmbralClas;
 
-	Mask = malloc(strlen(mask)*sizeof(char));
     strcpy(Mask, mask);
 	
     
@@ -95,5 +96,17 @@ void recibirArgumentos(int argc, char *argv[], int *Archivos, int *UmbralBin, in
 
 	//printf("Se obtuvieron los siguientes parametros: %d %d %d %s %s", nArchivos, nUmbralBin, nUmbralClas, texto, flag==0?"Sin Flag":"Flag" );
 
+
+}
+
+void main(int argc, char *argv[]){
+
+    int nArchivos = 0, nUmbralBin = 0, nUmbralClas = 0;
+    char *mask;
+    int flag = 0;
+    recibirArgumentos(argc, argv, &nArchivos, &nUmbralBin, &nUmbralClas, mask, &flag);
+
+    printf("Opcion h: %d\nOpcion u: %d\nOpcion n: %d\nFlag: %d\nMascara: %s\n", nArchivos, nUmbralBin, nUmbralClas, flag, mask);
+	//recibirArgumentos(argc, argv, &nArchivos, &nUmbralBin, &nUmbralClas, &flag);
 
 }

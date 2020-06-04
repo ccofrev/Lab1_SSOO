@@ -1,5 +1,5 @@
-#ifndef HERRAMIENTAS_H
-#define HERRAMIENTAS_H
+#ifndef JPEG_H
+#define JPEG_H
 
 // estructura imagen JPEG
 typedef struct {
