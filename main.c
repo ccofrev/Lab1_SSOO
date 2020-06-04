@@ -1,169 +1,42 @@
-/*******************************************************************************
+
+/*
  * 
- * jpegtest.c
- * 
- * Basado en desarrollo de Kenta Kuramochi publicado en
- * https://gist.github.com/kentakuramochi/f64e7646f1db8335c80f131be8359044
  * se compila con
- * gcc testJpeg.c -o testJpeg -std=c11 -ljpeg
+ * gcc main.c -o lab1 -std=c11 -ljpeg
  * 
- ******************************************************************************/
+ */
+
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <jpeglib.h>
-
-// estructura imagen JPEG
-typedef struct {
-    uint8_t *data;   // raw data
-    uint32_t width;
-    uint32_t height;
-    uint32_t ch;     // color channels
-} JpegData;
+#include <jpeglib.h>                                                                    
+#include "funciones.h"
+#include "herramientas.h"
 
 
-// Para reservar memoria para datos imagen
-void alloc_jpeg(JpegData *jpegData)
-{
-    jpegData->data = NULL;
-    jpegData->data = (uint8_t*) malloc(sizeof(uint8_t)  *
-                                       jpegData->width  *
-                                       jpegData->height *
-                                       jpegData->ch);
-}
+int main(int argc, char *argv[]){
 
-
-// Para liberar memoria
-void free_jpeg(JpegData *jpegData)
-{
-    if (jpegData->data != NULL) {
-        free(jpegData->data);
-        jpegData->data = NULL;
-    }
-}
-
-// read JPEG image
-// 1. create JPEG decompression object
-// 2. specify source data
-// 3. read JPEG header
-// 4. set parameters
-// 5. start decompression
-// 6. scan lines
-// 7. finish decompression
-bool read_jpeg(JpegData *jpegData,
-              const char *srcfile,
-              struct jpeg_error_mgr *jerr)
-{
-    // 1.
-    struct jpeg_decompress_struct cinfo;
-    jpeg_create_decompress(&cinfo);
-    cinfo.err = jpeg_std_error(jerr);
-
-    FILE *fp = fopen(srcfile, "rb");
-    if (fp == NULL) {
-        printf("Error: failed to open %s\n", srcfile);
-        return false;
-    }
-    // 2.
-    jpeg_stdio_src(&cinfo, fp);
-
-    // 3.
-    jpeg_read_header(&cinfo, TRUE);
-
-    // 4. omitted
-    // 5.
-    jpeg_start_decompress(&cinfo);
-
-    jpegData->width  = cinfo.image_width;
-    jpegData->height = cinfo.image_height;
-    jpegData->ch     = cinfo.num_components;
-
-    alloc_jpeg(jpegData);
-
-    // 6. read line by line
-    uint8_t *row = jpegData->data;
-    const uint32_t stride = jpegData->width * jpegData->ch;
-    for (int y = 0; y < jpegData->height; y++) {
-        jpeg_read_scanlines(&cinfo, &row, 1);
-        row += stride;
-    }
-
-    // 7.
-    jpeg_finish_decompress(&cinfo);
-    jpeg_destroy_decompress(&cinfo);
-    fclose(fp);
-
-    return true;
-}
-
-// write JPEG image
-// 1. create JPEG compression object
-// 2. specify destination data
-// 3. set parameters
-// 4. start compression
-// 5. scan lines
-// 6. finish compression
-bool write_jpeg(const JpegData *jpegData,
-                const char *dstfile,
-                struct jpeg_error_mgr *jerr,
-                J_COLOR_SPACE jcs)
-{
-    // 1.
-    struct jpeg_compress_struct cinfo;
-    jpeg_create_compress(&cinfo);
-    cinfo.err = jpeg_std_error(jerr);
-
-    FILE *fp = fopen(dstfile, "wb");
-    if (fp == NULL) {
-        printf("Error: failed to open %s\n", dstfile);
-        return false;
-    }
-    // 2.
-    jpeg_stdio_dest(&cinfo, fp);
-
-    // 3.
-    cinfo.image_width      = jpegData->width;
-    cinfo.image_height     = jpegData->height;
-    cinfo.input_components = jpegData->ch;
-    //cinfo.in_color_space   = JCS_RGB;
-    cinfo.in_color_space   = jcs;
-    jpeg_set_defaults(&cinfo);
-
-    // 4.
-    jpeg_start_compress(&cinfo, TRUE);
-
-    // 5.
-    uint8_t *row = jpegData->data;
-    const uint32_t stride = jpegData->width * jpegData->ch;
-    for (int y = 0; y < jpegData->height; y++) {
-        jpeg_write_scanlines(&cinfo, &row, 1);
-        row += stride;
-    }
-
-    // 6.
-    jpeg_finish_compress(&cinfo);
-    jpeg_destroy_compress(&cinfo);
-    fclose(fp);
-
-    return true;
-}
-
-
-
-int main(void){
-
+	int n = 0, flag = 0;
+	//recibirArgumentos(argc, argv, &n, &flag);
+	if(flag==1){
+		printf("Se utilizo flag -m\n");
+		}
+	
+    printf("El argumento de flag -h es: %d\n", n);
+	
 
     JpegData jpegDataOri, jpegDataDst, jpegDataDstBn, jpegDataDstBnLap, jpegDataDstBnLapUm;
 
     // 
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
-    int UMBRAL = 30;
+    int UMBRAL = 50;
+    bool factorOTope = true;
 
     // src/dst file
-    char *src = "./img_test/ering.jpg";
+    char *src = "./img_test/inv.jpg";
     char *dst = "./img_test/out.jpg";
     char *dstBn = "./img_test/outBn.jpg";
     char *dstBnLap = "./img_test/outBnLap.jpg";
@@ -254,8 +127,11 @@ int main(void){
                     pixelXY += lapMasc[jj+1][ii+1] * jpegDataDstBn.data[(i+ii)+ancho*(j+jj)];
                 }
             }
-            //pixelXY = (int) ((float)pixelXY*factor);
-            pixelXY = pixelXY<0?0 : pixelXY>255?255 : pixelXY;
+
+            if(factorOTope)
+                pixelXY = (int) ((float)pixelXY*factor);
+            else
+                pixelXY = pixelXY<0?0 : pixelXY>255?255 : pixelXY;
 
             jpegDataDstBnLap.data[i+ancho*j] = pixelXY;
             pixelXY = 0;
