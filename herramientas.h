@@ -10,5 +10,15 @@ typedef struct {
 } JpegData;
 
 
-void recibirArgumentos(int argc, char *argv[], int *numHijos, int *flag);
+bool read_jpeg(JpegData *jpegData,
+              const char *srcfile,
+              struct jpeg_error_mgr *jerr);
+
+bool write_jpeg(const JpegData *jpegData,
+                const char *dstfile,
+                struct jpeg_error_mgr *jerr,
+                J_COLOR_SPACE jcs);
+
+void free_jpeg(JpegData *jpegData);
+
 #endif

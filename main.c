@@ -1,4 +1,3 @@
-
 /*
  * 
  * se compila con
@@ -30,14 +29,14 @@ int main(int argc, char *argv[]){
     JpegData jpegDataOri, jpegDataDst, jpegDataDstBn, jpegDataDstBnLap, jpegDataDstBnLapUm;
 
     // 
-    struct jpeg_compress_struct cinfo;
+    //struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
     int UMBRAL = 50;
     bool factorOTope = true;
 
     // src/dst file
     char *src = "./img_test/inv.jpg";
-    char *dst = "./img_test/out.jpg";
+    //char *dst = "./img_test/out.jpg";
     char *dstBn = "./img_test/outBn.jpg";
     char *dstBnLap = "./img_test/outBnLap.jpg";
     char *dstBnLapUm = "./img_test/outBnLapUm.jpg";
@@ -95,11 +94,10 @@ int main(int argc, char *argv[]){
 
 
     //float val = 0.0;
-    float val;
-    int suma = 0, cont=0;
+    int cont=0;
     int i, j, ii, jj;
     int alto=0, ancho=0;
-    int pixelXY = 0, pixelXYLap = 0;
+    int pixelXY = 0;
 
     // Blanco y negro
     for (i=0; i<sizeOri; i+=jpegDataOri.ch) {

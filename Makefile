@@ -28,6 +28,3 @@ $(depends) : $(salida_source) $(salida_headers)
 clean :
 	$(RM) $(salida_out) $(salida_objects) $(zipfile) $(depends)
 
-.PHONY : build zip clean
-
-sinclude $(depends)

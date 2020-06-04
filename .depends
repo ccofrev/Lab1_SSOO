@@ -1,0 +1,3 @@
+funciones.o: funciones.c
+herramientas.o: herramientas.c funciones.h herramientas.h
+main.o: main.c funciones.h herramientas.h
