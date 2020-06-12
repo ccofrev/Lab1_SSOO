@@ -1,38 +1,44 @@
 /*
- * 
  * se compila con
  * gcc main.c -o lab1 -std=c11 -ljpeg
- * 
  */
-
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <jpeglib.h>                                                                    
+#include <jpeglib.h>    
+#include <string.h>                                                                
 #include "funciones.h"
 #include "jpeg.h"
 
 
 int main(int argc, char *argv[]){
 
-	int nArchivos = 0, nUmbralBin = 0, nUmbralClas = 0;
-    char *mask;
-    int flag = 0;
-    recibirArgumentos(argc, argv, &nArchivos, &nUmbralBin, &nUmbralClas, mask, &flag);
+    /// Parametros recibidos por consola
+	int nArchivos = 0;      // -c cantidad de imagenes
+    int nUmbralBin = 0;     // -u umbral para binarizar imagen
+    int nUmbralClas = 0;    // -n umbral para clasificacion nearly black    
+    char archivoMascara[20];// -m nombre archivo mascara
+    int flag = 0;           // -b bandera para resultado clasificacion en pantalla
 
+    // se reciben parametros
+    recibirArgumentos(argc, argv, &nArchivos, &nUmbralBin, &nUmbralClas, archivoMascara, &flag);
+
+    // Se inician estructuras de datos para imagenes a usar
     JpegData jpegDataOri, jpegDataDst, jpegDataDstBn, jpegDataDstBnLap, jpegDataDstBnLapUm;
 
-    // 
     //struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
-    int UMBRAL = 50;
-    bool factorOTope = true;
+    int UMBRAL = nUmbralBin;
 
     // src/dst file
-    char *src = "./img_test/inv.jpg";
-    //char *dst = "./img_test/out.jpg";
+    char src[30];
+    char imgStr[10];
+    
+    sprintf(imgStr, "imagen_%d", nArchivos);
+    sprintf(src, "./img_test/%s.jpg", imgStr);
+
     char *dstBn = "./img_test/outBn.jpg";
     char *dstBnLap = "./img_test/outBnLap.jpg";
     char *dstBnLapUm = "./img_test/outBnLapUm.jpg";
@@ -42,8 +48,7 @@ int main(int argc, char *argv[]){
         return -1;
     }
 
-    printf("Read:  %s\n", src);
-
+    //printf("Read:  %s\n", src);
 
     if (!read_jpeg(&jpegDataDst, src, &jerr)){
         free_jpeg(&jpegDataDst);
@@ -81,12 +86,24 @@ int main(int argc, char *argv[]){
     // 0, 1, 2, 3, ... m+1, m+2, ... m*n
     
     // reverse all bits
-    int sizeOri = jpegDataOri.width * jpegDataOri.height * jpegDataOri.ch;
+
+    int sizeDst = jpegDataOri.width * jpegDataOri.height;   // ancho*alto (solo 1 canal)
+    int sizeOri = sizeDst * jpegDataOri.ch;                 // ancho*alto*canales
+    
     float factoresBN[]={.3,.59,.11};   // factores para conversion a BN
-    int lapMasc[3][3] = {   {0, 1, 0},
-                            {1,-4, 1},
-                            {0, 1, 0} };
-    float factor = 1.0/9.0;
+   
+    
+    /*
+    int lapMasc[3][3] = {   {1, 1, 1},
+                            {1,-8, 1},
+                            {1, 1, 1} };
+                            */
+    
+    int lapMasc[3][3];
+    getMask(lapMasc, archivoMascara);
+
+    //float factor = 1.0/9.0;
+    float factor = 1.0;
 
 
     //float val = 0.0;
@@ -97,56 +114,65 @@ int main(int argc, char *argv[]){
 
     // Blanco y negro
     for (i=0; i<sizeOri; i+=jpegDataOri.ch) {
-
         jpegDataDst.data[i]= jpegDataOri.data[i] ;
-
-        if( i%jpegDataOri.ch==0 ){
-            jpegDataDstBn.data[cont]= factoresBN[0]*(float)jpegDataOri.data[i] + factoresBN[1]*(float)jpegDataOri.data[i] + factoresBN[2]*(float)jpegDataOri.data[i] ;
+        if( i%jpegDataOri.ch == 0 ){
+            jpegDataDstBn.data[cont] = factoresBN[0]*(float)jpegDataOri.data[i] + factoresBN[1]*(float)jpegDataOri.data[i] + factoresBN[2]*(float)jpegDataOri.data[i] ;
             cont++;
         }
     }
 
-       
-
-
     // recorrido imagen para laplaciano
     alto = jpegDataDstBn.height;
     ancho = jpegDataDstBn.width;
-
-    // se limpia para test          // umbral
-    for (j=1; j<alto-1; j++){       // filas desde la segunda (indice 1) hasta la penultima (indice n-1)
+    
+    // se limpia para test
+    for(j=1; j<alto-1; j++){       // filas desde la segunda (indice 1) hasta la penultima (indice n-1)
         for(i=1; i<ancho-1; i++){   // columnas desde la segunda (indice 1) hasta la penultima (indice m-1)
-            for(jj=-1; jj<=1;jj++){
-                for(ii=-1; ii<=1; ii++){
-                    pixelXY += lapMasc[jj+1][ii+1] * jpegDataDstBn.data[(i+ii)+ancho*(j+jj)];
+
+            for(jj=0; jj<3;jj++){
+                for(ii=0; ii<3; ii++){
+                    pixelXY += lapMasc[jj][ii] * jpegDataDstBn.data[((i+ii)-1)+ancho*((j+jj)-1)];
                 }
             }
-
-            if(factorOTope)
-                pixelXY = (int) ((float)pixelXY*factor);
-            else
-                pixelXY = pixelXY<0?0 : pixelXY>255?255 : pixelXY;
-
+            pixelXY = (int) ((float)pixelXY*factor);
+            pixelXY = pixelXY>255?255:pixelXY<0?0:pixelXY;  // se controlan sobrepasos
             jpegDataDstBnLap.data[i+ancho*j] = pixelXY;
             pixelXY = 0;
         }
-        //printf("\n");
     }
+
+
 
     // umbral
-    for(i=0; i<ancho*alto; i++){
-        jpegDataDstBnLapUm.data[i] = jpegDataDstBnLap.data[i]>UMBRAL?255:0;
+    int cuentaNegros = 0;
+    for(i=0; i<sizeDst; i++){
+        //jpegDataDstBnLapUm.data[i] = jpegDataDstBnLap.data[i]>UMBRAL?255:0;
+        if(jpegDataDstBnLap.data[i]>UMBRAL){
+            jpegDataDstBnLapUm.data[i] = 255;
+        }else{
+            jpegDataDstBnLapUm.data[i] = 0;
+            cuentaNegros++;
+        }
+    }
+
+    
+    if(flag==1){
+        //  Se calcula un porcentaje de pixeles negros, se compara con el valor recibido en parametro -n
+        printf("|\tImagen\t\t|\tNearly Black\t|\n|-----------------------|-----------------------|\n");
+        if(100*cuentaNegros/sizeDst > nUmbralClas)
+            printf("|\t%s\t|\t    si\t\t|\n\n", imgStr);
+        else
+            printf("|\t%s\t|\t    no\t\t|\n\n", imgStr);
     }
 
 
-    ///////////////////////////////     ESCRITURAS
-
+    ////////////////////////////////////////////////     ESCRITURAS
     // Escritura bn
     if (!write_jpeg(&jpegDataDstBn, dstBn, &jerr, JCS_GRAYSCALE)){
         free_jpeg(&jpegDataDstBn);
         return -1;
     }
-    printf("Write: %s\n", dstBn);
+    //printf("Write: %s\n", dstBn);
     free_jpeg(&jpegDataDstBn);
 
 
@@ -155,7 +181,7 @@ int main(int argc, char *argv[]){
         free_jpeg(&jpegDataDstBnLap);
         return -1;
     }
-    printf("Write: %s\n", dstBnLap);
+    //printf("Write: %s\n", dstBnLap);
     free_jpeg(&jpegDataDstBnLap);
     
 
@@ -164,7 +190,7 @@ int main(int argc, char *argv[]){
         free_jpeg(&jpegDataDstBnLapUm);
         return -1;
     }
-    printf("Write: %s\n", dstBnLapUm);
+    //printf("Write: %s\n", dstBnLapUm);
     free_jpeg(&jpegDataDstBnLapUm);
        
     return 0;

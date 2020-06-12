@@ -1,12 +1,9 @@
 /*******************************************************************************
  * 
- * Obtenido desde 
- * jpegtest.c
  * 
  * Basado en desarrollo de Kenta Kuramochi publicado en
  * https://gist.github.com/kentakuramochi/f64e7646f1db8335c80f131be8359044
- * se compila con
- * gcc testJpeg.c -o testJpeg -std=c11 -ljpeg
+ * 
  * 
  ******************************************************************************/
 
