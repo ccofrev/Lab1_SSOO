@@ -4,6 +4,10 @@
  * Basado en desarrollo de Kenta Kuramochi publicado en
  * https://gist.github.com/kentakuramochi/f64e7646f1db8335c80f131be8359044
  * 
+ * se modifico, entre otras cosas, la recepcion del espacio de espacio de color
+ * como parametro en la escritura ya que se asumia siempre RGB y para este 
+ * caso se usa GREYSCALE. Además, se agrega init_jpeg para reservar memoria, 
+ * puesto que originalmente solo se hacía la reserva al leer un archivo imagen. 
  * 
  ******************************************************************************/
 
@@ -26,6 +30,14 @@ void alloc_jpeg(JpegData *jpegData)
                                        jpegData->ch);
 }
 
+// funcion para reservar memoria para imagen sin leer desde archivo, forzando valores de alto, ancho y canales
+void init_jpeg(JpegData *jpegData, unsigned int image_width, unsigned int image_height, int num_components)
+{
+    jpegData->width  = image_width;
+    jpegData->height = image_height;
+    jpegData->ch     = num_components;
+    alloc_jpeg(jpegData);
+}
 
 // Para liberar memoria
 void free_jpeg(JpegData *jpegData)
@@ -89,6 +101,7 @@ bool read_jpeg(JpegData *jpegData,
 
     return true;
 }
+
 
 // write JPEG image
 // 1. create JPEG compression object

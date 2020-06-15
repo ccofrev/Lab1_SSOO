@@ -15,6 +15,8 @@
 
 int main(int argc, char *argv[]){
 
+    ////////////// VARIABLES
+
     /// Parametros recibidos por consola
 	int nArchivos = 0;      // -c cantidad de imagenes
     int nUmbralBin = 0;     // -u umbral para binarizar imagen
@@ -26,172 +28,151 @@ int main(int argc, char *argv[]){
     recibirArgumentos(argc, argv, &nArchivos, &nUmbralBin, &nUmbralClas, archivoMascara, &flag);
 
     // Se inician estructuras de datos para imagenes a usar
-    JpegData jpegDataOri, jpegDataDst, jpegDataDstBn, jpegDataDstBnLap, jpegDataDstBnLapUm;
+    JpegData jpegDataOri, jpegDataDstBn, jpegDataDstBnLap, jpegDataDstBnLapUm, jpegDataDst;
 
     //struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
-    int UMBRAL = nUmbralBin;
 
-    // src/dst file
-    char src[30];
-    char imgStr[10];
-    
-    sprintf(imgStr, "imagen_%d", nArchivos);
-    sprintf(src, "./img_test/%s.jpg", imgStr);
+    // var para iteracion imagenes
+    int i_img = 0;
 
-    char *dstBn = "./img_test/outBn.jpg";
-    char *dstBnLap = "./img_test/outBnLap.jpg";
-    char *dstBnLapUm = "./img_test/outBnLapUm.jpg";
+    /// NOMBRES DE ARCHIVOS
+    char imgSrcPath[30];
+    char imgSrcName[10];
+    char imgDstPath[30];
+    char imgDstName[10];
 
-    if (!read_jpeg(&jpegDataOri, src, &jerr)){
-        free_jpeg(&jpegDataOri);
-        return -1;
-    }
+    //// for para recorrer todos los archivos
+    for(i_img=1; i_img<=nArchivos; i_img++){
 
-    //printf("Read:  %s\n", src);
+        // se arman nombres archivos y ubicaciones
+        sprintf(imgSrcName, "imagen_%d", i_img);
+        sprintf(imgSrcPath, "./imagenes_prueba/%s.jpg", imgSrcName);
 
-    if (!read_jpeg(&jpegDataDst, src, &jerr)){
-        free_jpeg(&jpegDataDst);
-        return -1;
-    }
+        sprintf(imgDstName, "salida_%d", i_img);
+        sprintf(imgDstPath, "./salida_ejemplo/%s.jpg", imgDstName);
 
-    if (!read_jpeg(&jpegDataDstBn, src, &jerr)){
-        free_jpeg(&jpegDataDstBn);
-        return -1;
-    }
-    jpegDataDstBn.ch = 1; // se fuerza 1 canal en el destino BN
-
-    if (!read_jpeg(&jpegDataDstBnLap, src, &jerr)){
-        free_jpeg(&jpegDataDstBnLap);
-        return -1;
-    }
-    jpegDataDstBnLap.ch = 1; // se fuerza 1 canal en el destino BN
-
-    if (!read_jpeg(&jpegDataDstBnLapUm, src, &jerr)){
-        free_jpeg(&jpegDataDstBnLapUm);
-        return -1;
-    }
-    jpegDataDstBnLapUm.ch = 1; // se fuerza 1 canal en el destino BN
-
-    //printf("Read:  %s\n", src);
-
-    // se propone una imagen guardada en un solo arreglo
-    // así, una imagen de dimensiones m*n (ancho x alto) que se ve
-    // 0 1 2 3 .... m
-    // n+1 n+2 .... 2m
-    // .
-    // .
-    // ............ m*n
-    // queda representada de la siguiente forma
-    // 0, 1, 2, 3, ... m+1, m+2, ... m*n
-    
-    // reverse all bits
-
-    int sizeDst = jpegDataOri.width * jpegDataOri.height;   // ancho*alto (solo 1 canal)
-    int sizeOri = sizeDst * jpegDataOri.ch;                 // ancho*alto*canales
-    
-    float factoresBN[]={.3,.59,.11};   // factores para conversion a BN
-   
-    
-    /*
-    int lapMasc[3][3] = {   {1, 1, 1},
-                            {1,-8, 1},
-                            {1, 1, 1} };
-                            */
-    
-    int lapMasc[3][3];
-    getMask(lapMasc, archivoMascara);
-
-    //float factor = 1.0/9.0;
-    float factor = 1.0;
-
-
-    //float val = 0.0;
-    int cont=0;
-    int i, j, ii, jj;
-    int alto=0, ancho=0;
-    int pixelXY = 0;
-
-    // Blanco y negro
-    for (i=0; i<sizeOri; i+=jpegDataOri.ch) {
-        jpegDataDst.data[i]= jpegDataOri.data[i] ;
-        if( i%jpegDataOri.ch == 0 ){
-            jpegDataDstBn.data[cont] = factoresBN[0]*(float)jpegDataOri.data[i] + factoresBN[1]*(float)jpegDataOri.data[i] + factoresBN[2]*(float)jpegDataOri.data[i] ;
-            cont++;
+        // Se lee archivo origen
+        if (!read_jpeg(&jpegDataOri, imgSrcPath, &jerr)){
+            free_jpeg(&jpegDataOri);
+            return -1;
         }
-    }
+        //printf("Read:  %s\n", src);
 
-    // recorrido imagen para laplaciano
-    alto = jpegDataDstBn.height;
-    ancho = jpegDataDstBn.width;
-    
-    // se limpia para test
-    for(j=1; j<alto-1; j++){       // filas desde la segunda (indice 1) hasta la penultima (indice n-1)
-        for(i=1; i<ancho-1; i++){   // columnas desde la segunda (indice 1) hasta la penultima (indice m-1)
+        // Imagen destino escala de grises
+        init_jpeg(&jpegDataDstBn, jpegDataOri.width, jpegDataOri.height, 1);
+        
+        // Imagen destino escala grises + laplaciano
+        init_jpeg(&jpegDataDstBnLap, jpegDataOri.width, jpegDataOri.height, 1);
 
-            for(jj=0; jj<3;jj++){
-                for(ii=0; ii<3; ii++){
-                    pixelXY += lapMasc[jj][ii] * jpegDataDstBn.data[((i+ii)-1)+ancho*((j+jj)-1)];
+        // Imagen destino escala grises + laplaciano + umbral
+        init_jpeg(&jpegDataDstBnLapUm, jpegDataOri.width, jpegDataOri.height, 1);
+
+        // Imagen destino escala grises + laplaciano + umbral
+        init_jpeg(&jpegDataDst, jpegDataOri.width, jpegDataOri.height, 1);
+
+
+        // se propone una imagen guardada en un solo arreglo
+        // así, una imagen de dimensiones m*n (ancho x alto) que se ve
+        // 0 1 2 3 .... m
+        // n+1 n+2 .... 2m
+        // .
+        // .
+        // ............ m*n
+        // queda representada de la siguiente forma
+        // 0, 1, 2, 3, ... m, m+1, m+2, ... m*n
+
+        int sizeDst = jpegDataOri.width * jpegDataOri.height;   // ancho*alto (solo 1 canal)
+        int sizeOri = sizeDst * jpegDataOri.ch;                 // ancho*alto*canales (varios canales)
+        
+        float factoresBN[]={.3,.59,.11};   // factores para conversion a BN
+        
+        /*
+        //mascara laplaciano hardcodeada
+        int lapMasc[3][3] = {   {0, 1, 0},
+                                {1,-4, 1},
+                                {0, 1, 0} };
+                                */
+        
+        // mascara laplaciano desde archivo
+        int lapMasc[3][3];
+        getMask(lapMasc, archivoMascara);
+
+        // factor para "suavizar"
+        //float factor = 1.0/9.0;
+
+        int cont=0;
+        int i, j, ii, jj;
+        int pixelXY = 0;
+
+
+        // Escala de grises
+        for (i=0; i<sizeOri; i+=jpegDataOri.ch) {
+            if( i%jpegDataOri.ch == 0 ){
+                for(j=0; j<jpegDataOri.ch; j++){
+                    jpegDataDstBn.data[cont] += factoresBN[j]*(float)jpegDataOri.data[i+j] ;
                 }
+                cont++;
             }
-            pixelXY = (int) ((float)pixelXY*factor);
-            pixelXY = pixelXY>255?255:pixelXY<0?0:pixelXY;  // se controlan sobrepasos
-            jpegDataDstBnLap.data[i+ancho*j] = pixelXY;
-            pixelXY = 0;
         }
-    }
+        
+        // Laplaciano
+        for(j=1; j<jpegDataDstBn.height-1; j++){      // filas desde la segunda (indice 1) hasta la penultima (indice n-1)
+            for(i=1; i<jpegDataDstBn.width-1; i++){   // columnas desde la segunda (indice 1) hasta la penultima (indice m-1)
 
-
-
-    // umbral
-    int cuentaNegros = 0;
-    for(i=0; i<sizeDst; i++){
-        //jpegDataDstBnLapUm.data[i] = jpegDataDstBnLap.data[i]>UMBRAL?255:0;
-        if(jpegDataDstBnLap.data[i]>UMBRAL){
-            jpegDataDstBnLapUm.data[i] = 255;
-        }else{
-            jpegDataDstBnLapUm.data[i] = 0;
-            cuentaNegros++;
+                for(jj=0; jj<3;jj++){
+                    for(ii=0; ii<3; ii++){
+                        pixelXY += lapMasc[jj][ii] * jpegDataDstBn.data[((i+ii)-1)+jpegDataDstBn.width*((j+jj)-1)];
+                    }
+                }
+                //pixelXY = (int) ((float)pixelXY*factor);        // se aplica factor para suavizar
+                pixelXY = pixelXY>255?255:pixelXY<0?0:pixelXY;  // se controlan sobrepasos
+                jpegDataDstBnLap.data[i+jpegDataDstBn.width*j] = pixelXY;
+                pixelXY = 0;
+            }
         }
+
+        // Umbral
+        for(i=0; i<sizeDst; i++){
+            jpegDataDstBnLapUm.data[i] = jpegDataDstBnLap.data[i]>nUmbralBin?255:0;
+        }
+
+        for(i=0; i<sizeDst; i++){
+            jpegDataDst.data[i] = jpegDataDstBnLap.data[i]>nUmbralBin?255:0;
+        }
+
+        // Analisis "Nearly Black"
+        int cuentaNegros = 0;   // en esta parte también se cuentan pixeles negros para clasificacion
+        int tasaNegros = 0;     // tasa porcentual pixeles negros
+        for(i=0; i<sizeDst; i++){
+            if(jpegDataDstBnLap.data[i]<=nUmbralBin)
+                cuentaNegros++;
+        }
+        tasaNegros = 100*cuentaNegros/sizeDst;
+
+        // Impresion de info nearly black
+        if(flag==1){
+            //  Se calcula un porcentaje de pixeles negros, se compara con el valor recibido en parametro -n
+            if(i_img==1)
+                printf("|\tImagen\t\t|\tNearly Black\t|\n|-----------------------|-----------------------|\n");
+            if( tasaNegros > nUmbralClas)
+                printf("|\t%s\t|\t    si\t\t|\n", imgSrcName);
+            else
+                printf("|\t%s\t|\t    no\t\t|\n", imgSrcName);
+        }
+
+        ////////////////////////////////////////////////     ESCRITURAS
+
+        // Escritura bn-laplaciano-umbral
+        if (!write_jpeg(&jpegDataDst, imgDstPath, &jerr, JCS_GRAYSCALE)){
+            free_jpeg(&jpegDataDst);
+            return -1;
+        }
+        //printf("Write: %s\n", imgDstPath);
+        free_jpeg(&jpegDataDst);
+
     }
 
-    
-    if(flag==1){
-        //  Se calcula un porcentaje de pixeles negros, se compara con el valor recibido en parametro -n
-        printf("|\tImagen\t\t|\tNearly Black\t|\n|-----------------------|-----------------------|\n");
-        if(100*cuentaNegros/sizeDst > nUmbralClas)
-            printf("|\t%s\t|\t    si\t\t|\n\n", imgStr);
-        else
-            printf("|\t%s\t|\t    no\t\t|\n\n", imgStr);
-    }
-
-
-    ////////////////////////////////////////////////     ESCRITURAS
-    // Escritura bn
-    if (!write_jpeg(&jpegDataDstBn, dstBn, &jerr, JCS_GRAYSCALE)){
-        free_jpeg(&jpegDataDstBn);
-        return -1;
-    }
-    //printf("Write: %s\n", dstBn);
-    free_jpeg(&jpegDataDstBn);
-
-
-    // Escritura bn-laplaciano
-    if (!write_jpeg(&jpegDataDstBnLap, dstBnLap, &jerr, JCS_GRAYSCALE)){
-        free_jpeg(&jpegDataDstBnLap);
-        return -1;
-    }
-    //printf("Write: %s\n", dstBnLap);
-    free_jpeg(&jpegDataDstBnLap);
-    
-
-    // Escritura bn-laplaciano-umbral
-    if (!write_jpeg(&jpegDataDstBnLapUm, dstBnLapUm, &jerr, JCS_GRAYSCALE)){
-        free_jpeg(&jpegDataDstBnLapUm);
-        return -1;
-    }
-    //printf("Write: %s\n", dstBnLapUm);
-    free_jpeg(&jpegDataDstBnLapUm);
-       
     return 0;
+
 }

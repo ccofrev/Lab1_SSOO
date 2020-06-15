@@ -1,5 +1,5 @@
 salida_out = salida
-salida_headers = 	funciones.h jpeg.h 
+salida_headers = 	funciones.h jpeg.h
 salida_source  = $(salida_headers:.h=.c) main.c
 salida_objects = $(salida_source:.c=.o)
 
